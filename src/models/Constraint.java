@@ -1,31 +1,28 @@
 package models;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.util.List;
 
-@AllArgsConstructor
-@Getter
-@Setter
 public class Constraint {
-    List<Double> coefficients;
-    double value;
-    ConstraintType type;
+    private final List<Double> coefficients;
+    private final double value;
+    private final ConstraintType type;
 
-    public void transformToLessThenOrEqual() {
-        if (this.type == ConstraintType.EQUAL) {
-            throw new IllegalStateException(
-                    "Cannot transform EQUAL constraint to LESS_THAN_OR_EQUAL.");
-        }
-        if (this.type == ConstraintType.LESS_THAN_OR_EQUAL) {
-            return;
-        }
 
-        this.coefficients = this.coefficients.stream().map(coef -> -coef).toList();
-        this.value = -this.value;
-        this.type = ConstraintType.LESS_THAN_OR_EQUAL;
+    public Constraint(List<Double> coefficients, double value, ConstraintType type) {
+        this.coefficients = coefficients;
+        this.value = value;
+        this.type = type;
     }
 
+    public List<Double> getCoefficients() {
+        return coefficients;
+    }
+
+    public double getValue() {
+        return value;
+    }
+
+    public ConstraintType getType() {
+        return type;
+    }
 }

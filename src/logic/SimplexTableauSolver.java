@@ -9,28 +9,30 @@ import java.util.List;
 public class SimplexTableauSolver {
     private final SimpleMatrix mat;
     private final List<Integer> baseVariablesIndices;
-    private final int numConstraints;
-    private final int lastCol;
+    private final int objectiveRow;
 
     public SimplexTableauSolver(SimpleMatrix mat, List<Integer> baseVariablesIndices) {
         this.mat = mat.copy();
         this.baseVariablesIndices = new ArrayList<>(baseVariablesIndices);
-        this.numConstraints = baseVariablesIndices.size();
-        this.lastCol = mat.getNumCols() - 1;
+        this.objectiveRow = baseVariablesIndices.size();
     }
 
 
     public SimplexTableauSolverDTO solve() {
+        int iters = 0;
 
-        while (!isSolved()) {
+        while (!isSolved() && iters <= 40) {
+            iters++;
             this.mat.print();
             System.out.println("Basic variable indices " + baseVariablesIndices);
             int pivotCol = getPivotColumn();
-            int replaceRow = getLeavingVariable(pivotCol);
+            System.out.println("Pivot column is " + pivotCol);
+            int replaceRowIndex = getLeavingVariable(pivotCol);
+            System.out.println("Leaving variable " + replaceRowIndex);
 
-            this.baseVariablesIndices.remove((Integer) replaceRow); // Cast to Integer to remove by value
+            this.baseVariablesIndices.remove(replaceRowIndex); // Cast to Integer to remove by value
             this.baseVariablesIndices.add(pivotCol);
-            normalizePivot(pivotCol, replaceRow);
+            normalizePivot(pivotCol, replaceRowIndex);
         }
 
         this.mat.print();
@@ -46,8 +48,8 @@ public class SimplexTableauSolver {
 
 
     private boolean isSolved() {
-        for (int i = 0; i < mat.getNumCols(); i++) {
-            if (mat.get(numConstraints, i) < 0) {
+        for (int i = 0; i < mat.getNumCols() - 1; i++) {
+            if (mat.get(objectiveRow, i) > 0) {
                 return false;
             }
         }
@@ -58,21 +60,28 @@ public class SimplexTableauSolver {
     Returns the index of the pivot column, or -1 if not found
      */
     private int getPivotColumn() {
-        for (int i = 0; i < this.mat.getNumCols(); i++) {
-            if (mat.get(numConstraints, i) < 0) {
-                return i;
+        int maxIndex = -1;
+        double maxValue = -1;
+
+        for (int i = 0; i < this.mat.getNumCols() - 1; i++) {
+
+            if (mat.get(objectiveRow, i) > maxValue) {
+                maxIndex = i;
+                maxValue = mat.get(objectiveRow, i);
             }
         }
-        return -1;
+
+        return maxIndex;
     }
 
     private int getLeavingVariable(int pivotColumn) {
         double minQuotient = -1;
         int minIndex = -1;
 
-        for (int i = 0; i < numConstraints; i++) {
+        for (int i = 0; i < objectiveRow; i++) {
 
             double currentQuotient = calculateQuotient(i, pivotColumn);
+
 
             if (currentQuotient < 0) { // indicates negative a_ij
                 continue;
@@ -90,8 +99,10 @@ public class SimplexTableauSolver {
     }
 
     private double calculateQuotient(int rowIndex, int pivotColumn) {
-        double a = this.mat.get(rowIndex, lastCol);
+        double a = this.mat.get(rowIndex, this.mat.getNumCols() - 1);
         double b = this.mat.get(rowIndex, pivotColumn);
+
+        System.out.println("Calculating quotient for row " + rowIndex + ": " + a + " / " + b + " = " + (b == 0 ? "undefined" : (a / b)));
         if (b == 0) {
             return -1;
         }
