@@ -5,6 +5,8 @@ import org.apache.commons.math3.fraction.Fraction;
 import org.apache.commons.math3.fraction.FractionField;
 import org.apache.commons.math3.linear.Array2DRowFieldMatrix;
 
+import java.util.List;
+
 public class Tableau extends Array2DRowFieldMatrix<Fraction> {
     public Tableau(Tableau tableau) {
         super(tableau.getField(), tableau.getRowDimension(), tableau.getColumnDimension());
@@ -81,6 +83,45 @@ public class Tableau extends Array2DRowFieldMatrix<Fraction> {
             }
             System.out.println(" ]");
         }
+    }
+
+    // Add method to remove several rows and columns at once
+    public Tableau removeRowsAndColumns(List<Integer> rowsToRemoveList,
+                                        List<Integer> colsToRemoveList) {
+        int newRowCount = this.getRowDimension() - rowsToRemoveList.size();
+        int newColCount = this.getColumnDimension() - colsToRemoveList.size();
+        Tableau reducedTableau = new Tableau(newRowCount, newColCount);
+        System.out.println("Removing rows " + rowsToRemoveList + " and columns " + colsToRemoveList);
+
+        int newRowIdx = 0;
+        for (int i = 0; i < this.getRowDimension(); i++) {
+            boolean skipRow = false;
+            for (int r : rowsToRemoveList) {
+                if (i == r) {
+                    skipRow = true;
+                    break;
+                }
+            }
+            if (skipRow) continue;
+
+            int newColIdx = 0;
+            for (int j = 0; j < this.getColumnDimension(); j++) {
+                boolean skipCol = false;
+                for (int c : colsToRemoveList) {
+                    if (j == c) {
+                        skipCol = true;
+                        break;
+                    }
+                }
+                if (skipCol) continue;
+
+                reducedTableau.setEntry(newRowIdx, newColIdx, this.getEntry(i, j));
+                newColIdx++;
+            }
+            newRowIdx++;
+        }
+
+        return reducedTableau;
     }
 }
 

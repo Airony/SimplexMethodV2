@@ -19,10 +19,8 @@ public class SimplexTableauSolver {
 
 
     public SimplexTableauSolverDTO solve() {
-        int iters = 0;
 
-        while (!isSolved() && iters <= 40) {
-            iters++;
+        while (!isSolved()) {
             this.mat.print();
             System.out.println("Basic variable indices " + baseVariablesIndices);
             int pivotCol = getPivotColumn();
@@ -49,7 +47,7 @@ public class SimplexTableauSolver {
 
     private boolean isSolved() {
         for (int i = 0; i < mat.getColumnDimension() - 1; i++) {
-            if (mat.getEntry(objectiveRow, i).doubleValue() > 0) {
+            if (FractionUtils.isStrictlyPositive(mat.getEntry(objectiveRow, i))) {
                 return false;
             }
         }
@@ -82,11 +80,10 @@ public class SimplexTableauSolver {
 
             Fraction currentQuotient = calculateQuotient(i, pivotColumn);
 
-
-            if (currentQuotient.doubleValue() < 0) { // indicates negative a_ij
+            if (FractionUtils.isStrictlyNegative(currentQuotient)) { // indicates negative a_ij
                 continue;
             }
-            if (currentQuotient.compareTo(minQuotient) <= 0 || minQuotient.doubleValue() <= 0) {
+            if (currentQuotient.compareTo(minQuotient) <= 0 || FractionUtils.isNegative(minQuotient)) {
                 minIndex = i;
                 minQuotient = currentQuotient;
             }
@@ -127,4 +124,3 @@ public class SimplexTableauSolver {
     }
 
 }
-

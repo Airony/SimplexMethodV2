@@ -1,5 +1,7 @@
-import logic.SimplexTableauSolver;
+import logic.LinearProgramSolver;
 import logic.Tableau;
+import models.Constraint;
+import models.ConstraintType;
 import org.apache.commons.math3.fraction.Fraction;
 
 import java.util.List;
@@ -38,27 +40,28 @@ public class Main {
         tab.setEntry(4, 0, new Fraction(-1));
         tab.setEntry(4, 1, new Fraction(-1));
 
-        new SimplexTableauSolver(tab, List.of(2, 5, 6)).solve();
+//        new SimplexTableauSolver(tab, List.of(2, 5, 6)).solve();
 
 
-//        Constraint c1 = new Constraint(
-//                List.of(2.0, 1.0),
-//                6.0,
-//                models.ConstraintType.LESS_THAN_OR_EQUAL
-//        );
-//        Constraint c2 = new Constraint(
-//                List.of(1.0, 1.0),
-//                4.0,
-//                ConstraintType.EQUAL
-//        );
-//        Constraint c3 = new Constraint(
-//                List.of(1.0, 3.0),
-//                8.0,
-//                ConstraintType.GREATER_THAN_OR_EQUAL
-//        );
-//        LinearProgramSolver solver = new LinearProgramSolver(
-//                List.of(c1, c2, c3),
-//                List.of(-1.0, -1.0)
-//        );
+        Constraint c1 = new Constraint(
+                List.of(2.0, 1.0),
+                6.0,
+                models.ConstraintType.LESS_THAN_OR_EQUAL
+        );
+        Constraint c2 = new Constraint(
+                List.of(1.0, 1.0),
+                4.0,
+                ConstraintType.EQUAL
+        );
+        Constraint c3 = new Constraint(
+                List.of(1.0, 3.0),
+                8.0,
+                ConstraintType.GREATER_THAN_OR_EQUAL
+        );
+        LinearProgramSolver solver = new LinearProgramSolver(
+                List.of(c1, c2, c3),
+                List.of(-1.0, -1.0)
+        );
+        solver.solve();
     }
 }

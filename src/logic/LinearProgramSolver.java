@@ -2,7 +2,7 @@ package logic;
 
 import models.Constraint;
 import models.ConstraintType;
-import org.ejml.simple.SimpleMatrix;
+import org.apache.commons.math3.fraction.Fraction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,6 +13,8 @@ public class LinearProgramSolver {
     private final List<Double> maxObjectiveFunctionCoefficients;
     private final Map<Integer, Double> slackVariablesCoefficients = new HashMap<>();
     private final Map<Integer, Double> artificialVariablesCoefficients = new HashMap<>();
+    private final Tableau tableau;
+    private final List<Integer> basisIndices;
 
     public LinearProgramSolver(
             List<Constraint> constraints,
@@ -71,9 +73,15 @@ public class LinearProgramSolver {
         System.out.println("Num Artificial Variables: " + artificialVariablesCoefficients.size());
 
 
-        SimpleMatrix mat = new SimpleMatrix(numRows, numVariables + 1);
-        // Start with all zeroes
-        mat.fill(0.0);
+        tableau = new Tableau(numRows, numVariables + 1);
+
+        // Fill the tableau with zeroes
+        tableau.fillZeroes();
+        for (int i = 0; i < numRows; i++) {
+            for (int j = 0; j < numVariables + 1; j++) {
+                tableau.setEntry(i, j, Fraction.ZERO);
+            }
+        }
 
         // Fill the constraint rows
         int putArtificialVar = 0;
@@ -81,61 +89,60 @@ public class LinearProgramSolver {
         for (int i = 0; i < numConstraints; i++) {
             Equation equation = equations.get(i);
             for (int j = 0; j < equation.coefficients.size(); j++) {
-                mat.set(i, j, equation.coefficients.get(j));
+                tableau.setEntry(i, j, new Fraction(equation.coefficients.get(j)));
             }
             if (slackVariablesCoefficients.containsKey(i)) {
-                // Set slack variable coef
-                mat.set(
+                tableau.setEntry(
                         i,
                         maxObjectiveFunctionCoefficients.size() + putSlackVar,
-                        slackVariablesCoefficients.get(i));
+                        new Fraction(slackVariablesCoefficients.get(i)));
                 putSlackVar++;
             }
-            // Set artificial variable coef
             if (artificialVariablesCoefficients.containsKey(i)) {
-                mat.set(
+                tableau.setEntry(
                         i,
                         maxObjectiveFunctionCoefficients.size()
                                 + slackVariablesCoefficients.size()
                                 + putArtificialVar,
-                        artificialVariablesCoefficients.get(i));
+                        new Fraction(artificialVariablesCoefficients.get(i)));
                 putArtificialVar++;
             }
-
-            // Set RHS value
-            mat.set(i, numVariables, equation.getValue());
+            tableau.setEntry(i, numVariables, new Fraction(equation.getValue()));
         }
+
         List<Double> objectiveFunctionCoefficients = buildObjectiveFunctionCoefficients();
         for (int i = 0; i < objectiveFunctionCoefficients.size(); i++) {
-            mat.set(numRows - 1, i, objectiveFunctionCoefficients.get(i));
+            tableau.setEntry(numRows - 1, i, new Fraction(objectiveFunctionCoefficients.get(i)));
         }
+
         if (!artificialVariablesCoefficients.isEmpty()) {
             // Build the artificial objective function row
 
             for (int i = 0; i < maxObjectiveFunctionCoefficients.size() + slackVariablesCoefficients.size(); i++) {
-                double sum = 0.0;
+                Fraction sum = Fraction.ZERO;
                 for (int j = 0; j < numConstraints; j++) {
                     if (!artificialVariablesCoefficients.containsKey(j)) {
                         continue;
                     }
-                    sum += mat.get(j, i);
+                    sum = sum.add(tableau.getEntry(j, i));
                 }
-                mat.set(numRows - 2, i, sum);
+                tableau.setEntry(numRows - 2, i, sum);
             }
             // Set RHS value
-            double rhsSum = 0.0;
+            Fraction rhsSum = Fraction.ZERO;
             for (int j = 0; j < numConstraints; j++) {
                 if (!artificialVariablesCoefficients.containsKey(j)) {
                     continue;
                 }
-                rhsSum += mat.get(j, numVariables);
+                rhsSum = rhsSum.add(tableau.getEntry(j, numVariables));
             }
-            mat.set(numRows - 2, numVariables, rhsSum);
+            tableau.setEntry(numRows - 2, numVariables, rhsSum);
         }
 
         System.out.println("Initial Simplex Tableau:");
-        mat.print();
-        List<Integer> basisIndices = new ArrayList<>();
+        tableau.print();
+
+        basisIndices = new ArrayList<>();
         // Initial basis variables are the positive slack and artificial variables
         basisIndices.addAll(this.slackVariablesCoefficients.entrySet()
                 .stream()
@@ -146,14 +153,70 @@ public class LinearProgramSolver {
                 .toList());
         basisIndices.addAll(this.artificialVariablesCoefficients.keySet()
                 .stream()
-                .map(key -> key + maxObjectiveFunctionCoefficients.size() + this.slackVariablesCoefficients.size())
+                .map(key -> key + maxObjectiveFunctionCoefficients.size() + this.slackVariablesCoefficients.size() - 1)
                 .toList());
         basisIndices.sort(Integer::compareTo);
 
-        System.out.println("Initial basis indices: " + basisIndices);
-//        SimplexTableauSolver simplexTableauSolver = new SimplexTableauSolver(mat, basisIndices);
-//        var phase1Result = simplexTableauSolver.solve();
+    }
 
+    public LinearProgramSolverOutput solve() {
+
+        System.out.println("Initial basis indices: " + basisIndices);
+        SimplexTableauSolver simplexTableauSolver = new SimplexTableauSolver(tableau, basisIndices);
+        var phase1Result = simplexTableauSolver.solve();
+        if (artificialVariablesCoefficients.isEmpty()) {
+            return displaySolution(phase1Result.tableau(), phase1Result.basisIndices());
+        }
+        // Else, move on to phase 2
+        // Check if its feasible , i.e. the objective function value is 0
+        Fraction objectiveValue = phase1Result.tableau()
+                .getEntry(
+                        phase1Result.tableau().getRowDimension() - 2,
+                        phase1Result.tableau().getColumnDimension() - 1);
+        if (!objectiveValue.equals(Fraction.ZERO)) {
+            System.out.println("The linear program is infeasible.");
+            return null;
+        }
+
+        Tableau phase2Tableau = phase1Result.tableau().removeRowsAndColumns(
+                List.of(phase1Result.tableau().getRowDimension() - 2),
+                // Remove artificial objective function row
+                // The last columns before RHS are the artificial variables
+                artificialVariablesCoefficients.keySet()
+                        .stream()
+                        .map(key -> key + maxObjectiveFunctionCoefficients.size() + slackVariablesCoefficients.size() - 1)
+                        .toList()
+
+        );
+        // Remove the artificial objective function row
+        System.out.println("Phase 2 Tableau:");
+        phase2Tableau.print();
+        var phase2Solver = new SimplexTableauSolver(phase2Tableau, phase1Result.basisIndices());
+        System.out.println("Starting Phase 2 Simplex Solver:");
+        var phase2Result = phase2Solver.solve();
+        return displaySolution(phase2Result.tableau(), phase2Result.basisIndices());
+    }
+
+    private LinearProgramSolverOutput displaySolution(Tableau tableau, List<Integer> basisIndices) {
+        Fraction objectiveFunctionValue = tableau.getEntry(
+                tableau.getRowDimension() - 1,
+                tableau.getColumnDimension() - 1);
+        System.out.println("Optimal objective function value: " + objectiveFunctionValue);
+        // For each variable, check if it's in the basis
+        List<Fraction> finalValues = new ArrayList<>();
+        for (int i = 0; i < maxObjectiveFunctionCoefficients.size(); i++) {
+            if (!basisIndices.contains(i)) {
+                System.out.println("Variable x" + i + " = 0");
+                finalValues.add(new Fraction(0));
+            } else {
+                // Find the row where it's basic
+                int rowIndex = basisIndices.indexOf(i);
+                Fraction value = tableau.getEntry(rowIndex, tableau.getColumnDimension() - 1);
+                finalValues.add(value);
+                System.out.println("Variable x" + i + " = " + value);
+            }
+        }
+        return new LinearProgramSolverOutput(finalValues, objectiveFunctionValue);
     }
 
     private List<Double> buildObjectiveFunctionCoefficients() {
