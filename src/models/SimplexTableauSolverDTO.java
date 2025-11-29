@@ -1,8 +1,8 @@
 package models;
 
-import org.ejml.simple.SimpleMatrix;
+import logic.Tableau;
 
 import java.util.List;
 
-public record SimplexTableauSolverDTO(SimpleMatrix tableau, List<Integer> basisIndices) {
+public record SimplexTableauSolverDTO(Tableau tableau, List<Integer> basisIndices) {
 }

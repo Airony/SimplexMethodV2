@@ -1,18 +1,18 @@
 package logic;
 
 import models.SimplexTableauSolverDTO;
-import org.ejml.simple.SimpleMatrix;
+import org.apache.commons.math3.fraction.Fraction;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SimplexTableauSolver {
-    private final SimpleMatrix mat;
+    private final Tableau mat;
     private final List<Integer> baseVariablesIndices;
     private final int objectiveRow;
 
-    public SimplexTableauSolver(SimpleMatrix mat, List<Integer> baseVariablesIndices) {
-        this.mat = mat.copy();
+    public SimplexTableauSolver(Tableau mat, List<Integer> baseVariablesIndices) {
+        this.mat = new Tableau(mat);
         this.baseVariablesIndices = new ArrayList<>(baseVariablesIndices);
         this.objectiveRow = baseVariablesIndices.size();
     }
@@ -48,8 +48,8 @@ public class SimplexTableauSolver {
 
 
     private boolean isSolved() {
-        for (int i = 0; i < mat.getNumCols() - 1; i++) {
-            if (mat.get(objectiveRow, i) > 0) {
+        for (int i = 0; i < mat.getColumnDimension() - 1; i++) {
+            if (mat.getEntry(objectiveRow, i).doubleValue() > 0) {
                 return false;
             }
         }
@@ -61,13 +61,13 @@ public class SimplexTableauSolver {
      */
     private int getPivotColumn() {
         int maxIndex = -1;
-        double maxValue = -1;
+        Fraction maxValue = null;
 
-        for (int i = 0; i < this.mat.getNumCols() - 1; i++) {
+        for (int i = 0; i < this.mat.getColumnDimension() - 1; i++) {
 
-            if (mat.get(objectiveRow, i) > maxValue) {
+            if ((maxIndex < 0) || (mat.getEntry(objectiveRow, i).compareTo(maxValue) >= 0)) {
                 maxIndex = i;
-                maxValue = mat.get(objectiveRow, i);
+                maxValue = mat.getEntry(objectiveRow, i);
             }
         }
 
@@ -75,18 +75,18 @@ public class SimplexTableauSolver {
     }
 
     private int getLeavingVariable(int pivotColumn) {
-        double minQuotient = -1;
+        Fraction minQuotient = new Fraction(-1);
         int minIndex = -1;
 
         for (int i = 0; i < objectiveRow; i++) {
 
-            double currentQuotient = calculateQuotient(i, pivotColumn);
+            Fraction currentQuotient = calculateQuotient(i, pivotColumn);
 
 
-            if (currentQuotient < 0) { // indicates negative a_ij
+            if (currentQuotient.doubleValue() < 0) { // indicates negative a_ij
                 continue;
             }
-            if (currentQuotient < minQuotient || minQuotient <= 0) {
+            if (currentQuotient.compareTo(minQuotient) <= 0 || minQuotient.doubleValue() <= 0) {
                 minIndex = i;
                 minQuotient = currentQuotient;
             }
@@ -98,40 +98,31 @@ public class SimplexTableauSolver {
         return minIndex;
     }
 
-    private double calculateQuotient(int rowIndex, int pivotColumn) {
-        double a = this.mat.get(rowIndex, this.mat.getNumCols() - 1);
-        double b = this.mat.get(rowIndex, pivotColumn);
+    private Fraction calculateQuotient(int rowIndex, int pivotColumn) {
+        Fraction a = this.mat.getEntry(rowIndex, this.mat.getColumnDimension() - 1);
+        Fraction b = this.mat.getEntry(rowIndex, pivotColumn);
 
-        System.out.println("Calculating quotient for row " + rowIndex + ": " + a + " / " + b + " = " + (b == 0 ? "undefined" : (a / b)));
-        if (b == 0) {
-            return -1;
+        if (b.getDenominator() == 0) {
+            return new Fraction(-1);
         }
-        return a / b;
+        return a.divide(b);
     }
 
 
     private void normalizePivot(int pivotColumnIndex, int pivotRowIndex) {
-        int rows = mat.getNumRows();
-        int cols = mat.getNumCols();
+        int rows = mat.getRowDimension();
 
-        double pivotVal = mat.get(pivotRowIndex, pivotColumnIndex);
+        Fraction pivotVal = mat.getEntry(pivotRowIndex, pivotColumnIndex);
 
         // 1. Normalize pivot row
-        for (int j = 0; j < cols; j++) {
-            mat.set(pivotRowIndex, j, mat.get(pivotRowIndex, j) / pivotVal);
-        }
+        mat.divideRow(pivotRowIndex, pivotVal);
 
         // 2. Eliminate pivot column in other rows
         for (int i = 0; i < rows; i++) {
             if (i == pivotRowIndex) continue;
-
-            double factor = mat.get(i, pivotColumnIndex);
-            if (factor == 0) continue;
-
-            for (int j = 0; j < cols; j++) {
-                double newVal = mat.get(i, j) - factor * mat.get(pivotRowIndex, j);
-                mat.set(i, j, newVal);
-            }
+            Fraction factor = mat.getEntry(i, pivotColumnIndex);
+            if (factor.getDenominator() == 0) continue;
+            mat.subtractMultipleOfRow(i, pivotRowIndex, factor);
         }
     }
 

@@ -17,5 +17,7 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="ejml.all" level="project" />
+    <orderEntry type="library" name="projectlombok.lombok" level="project" />
+    <orderEntry type="library" name="guicedee.services.commons.math3" level="project" />
   </component>
 </module>

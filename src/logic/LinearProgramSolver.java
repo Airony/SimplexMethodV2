@@ -151,8 +151,8 @@ public class LinearProgramSolver {
         basisIndices.sort(Integer::compareTo);
 
         System.out.println("Initial basis indices: " + basisIndices);
-        SimplexTableauSolver simplexTableauSolver = new SimplexTableauSolver(mat, basisIndices);
-        var phase1Result = simplexTableauSolver.solve();
+//        SimplexTableauSolver simplexTableauSolver = new SimplexTableauSolver(mat, basisIndices);
+//        var phase1Result = simplexTableauSolver.solve();
 
     }
 
