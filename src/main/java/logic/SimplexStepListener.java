@@ -1,5 +1,6 @@
 package logic;
 
+import models.ConstraintType;
 import org.apache.commons.math3.fraction.Fraction;
 import org.apache.commons.math3.linear.FieldMatrix;
 
@@ -58,7 +59,7 @@ public interface SimplexStepListener {
      * @param status The solution status (OPTIMAL, UNBOUNDED, INFEASIBLE)
      */
     void onPhase2Complete(FieldMatrix<Fraction> tableau, Fraction optimalValue,
-                          Fraction[] solution, SolutionStatus status);
+                          Fraction[] solution, ConstraintType.SolutionStatus status);
 
     /**
      * Called if an error occurs during solving.

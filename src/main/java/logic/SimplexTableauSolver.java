@@ -1,5 +1,6 @@
 package logic;
 
+import models.SimplexIterationResult;
 import org.apache.commons.math3.fraction.Fraction;
 
 import java.util.ArrayList;
@@ -17,13 +18,13 @@ public class SimplexTableauSolver {
     }
 
 
-    public SimplexIter solve() {
+    public SimplexIterationResult solve() {
         if (isSolved()) {
-            return new SimplexIter(
+            return new SimplexIterationResult(
                     null,
                     null,
                     mat,
-                    SimplexIter.Status.OPTIMAL,
+                    SimplexIterationResult.Status.OPTIMAL,
                     baseVariablesIndices);
 
         }
@@ -36,11 +37,11 @@ public class SimplexTableauSolver {
         try {
             replaceRowIndex = getLeavingVariable(pivotCol);
         } catch (UnboundedProblemException e) {
-            return new SimplexIter(
+            return new SimplexIterationResult(
                     pivotCol,
                     null,
                     mat,
-                    SimplexIter.Status.UNBOUNDED,
+                    SimplexIterationResult.Status.UNBOUNDED,
                     baseVariablesIndices);
         }
         System.out.println("Leaving variable " + replaceRowIndex);
@@ -56,11 +57,11 @@ public class SimplexTableauSolver {
         // We have the list of basic variables
         System.out.println("Basic variacles are " + baseVariablesIndices);
 
-        return new SimplexIter(
+        return new SimplexIterationResult(
                 pivotCol,
                 replaceRowIndex,
                 mat,
-                SimplexIter.Status.CONTINUE,
+                SimplexIterationResult.Status.CONTINUE,
                 baseVariablesIndices);
 
     }

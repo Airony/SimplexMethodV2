@@ -23,12 +23,11 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import logic.LPProblem;
 import logic.LinearProgramSolver;
 import logic.SimplexStepListener;
-import logic.SolutionStatus;
 import models.Constraint;
 import models.ConstraintType;
+import models.LPProblem;
 import org.apache.commons.math3.fraction.Fraction;
 import org.apache.commons.math3.linear.FieldMatrix;
 
@@ -318,7 +317,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
             ConstraintType constraintType = ConstraintType.fromString(row.constraintType.getValue());
 
             // Create and add constraint
-            Constraint constraint = new Constraint(coefficients, rhsValue, constraintType);
+            Constraint constraint = new Constraint(rhsValue, constraintType, coefficients);
             constraints.add(constraint);
         }
         LPProblem.ObjectiveType objType = LPProblem.ObjectiveType.fromString(objectiveType.getValue());
@@ -411,8 +410,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
     @Override
     public void onPhase2Complete(FieldMatrix<Fraction> tableau,
                                  Fraction optimalValue,
-                                 Fraction[] solution,
-                                 SolutionStatus status) {
+                                 Fraction[] solution, ConstraintType.SolutionStatus status) {
         Platform.runLater(() -> {
             VBox resultsBox = new VBox(8);
             resultsBox.setPadding(new Insets(12));
@@ -424,7 +422,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
 
             Label statusLabel = new Label("Status: " + status);
             statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
-            statusLabel.setTextFill(javafx.scene.paint.Color.web(status == SolutionStatus.OPTIMAL ? "#28a745" : "#dc3545"));
+            statusLabel.setTextFill(javafx.scene.paint.Color.web(status == ConstraintType.SolutionStatus.OPTIMAL ? "#28a745" : "#dc3545"));
 
             Label optimalLabel = new Label(String.format(
                     "Optimal Value: %s = %.4f",

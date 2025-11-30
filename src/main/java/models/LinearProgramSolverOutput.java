@@ -1,4 +1,4 @@
-package logic;
+package models;
 
 import org.apache.commons.math3.fraction.Fraction;
 

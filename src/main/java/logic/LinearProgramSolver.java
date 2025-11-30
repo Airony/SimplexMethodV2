@@ -2,6 +2,9 @@ package logic;
 
 import models.Constraint;
 import models.ConstraintType;
+import models.LPProblem;
+import models.LinearProgramSolverOutput;
+import models.SimplexIterationResult;
 import org.apache.commons.math3.fraction.Fraction;
 
 import java.util.ArrayList;
@@ -74,8 +77,8 @@ public class LinearProgramSolver {
             if (phase1Result == null) {
                 return;
             }
-            phase2Tableau = preparePhase2Tableau(phase1Result.getTableau());
-            phase2BasisIndices = phase1Result.getBaseVariablesIndices();
+            phase2Tableau = preparePhase2Tableau(phase1Result.tableau());
+            phase2BasisIndices = phase1Result.baseVariablesIndices();
         }
         // Need to exclude the aritifical variables from the variable names
         // Basically exclude the last 'artificialVariablesCoefficients.size()' variable names
@@ -86,73 +89,70 @@ public class LinearProgramSolver {
 
         var phase2Solver = new SimplexTableauSolver(phase2Tableau, phase2BasisIndices);
         System.out.println("Starting Phase 2 Simplex Solver:");
-        SimplexIter phase2Result;
-        int iteration = 0;
+        SimplexIterationResult phase2Result;
+        int iteration = 1;
         do {
             phase2Result = phase2Solver.solve();
             simplexStepListener.onPhase2Step(
-                    phase2Result.getTableau(),
-                    phase2Result.getEnteringVar() != null ? variableNames.get(phase2Result.getEnteringVar()) : null,
-                    phase2Result.getLeavingVar() != null ? variableNames.get(phase2Result.getLeavingVar()) : null,
+                    phase2Result.tableau(),
+                    phase2Result.enteringVar() != null ? variableNames.get(phase2Result.enteringVar()) : null,
+                    phase2Result.leavingVar() != null ? variableNames.get(phase2Result.leavingVar()) : null,
                     iteration,
-                    phase2Result.getBaseVariablesIndices()
+                    phase2Result.baseVariablesIndices()
                             .stream()
                             .map(variableNames::get)
                             .toList(),
                     phase2VariableNames);
             iteration++;
-        } while (phase2Result.getStatus() == SimplexIter.Status.CONTINUE);
-        if (phase2Result.getStatus() == SimplexIter.Status.UNBOUNDED) {
-            simplexStepListener.onPhase2Complete(
-                    phase2Result.getTableau(),
-                    null,
-                    null,
-                    SolutionStatus.UNBOUNDED);
+        } while (phase2Result.status() == SimplexIterationResult.Status.CONTINUE);
+        if (phase2Result.status() == SimplexIterationResult.Status.UNBOUNDED) {
+            simplexStepListener.onPhase2Complete(phase2Result.tableau(),
+                    null, null, ConstraintType.SolutionStatus.UNBOUNDED);
         }
 
         var extractedSolution = extractSolution(
-                phase2Result.getTableau(),
-                phase2Result.getBaseVariablesIndices());
+                phase2Result.tableau(),
+                phase2Result.baseVariablesIndices());
 
         simplexStepListener.onPhase2Complete(
-                phase2Result.getTableau(),
+                phase2Result.tableau(),
                 extractedSolution.optimalValue(),
                 extractedSolution.variableValues().toArray(new Fraction[0]),
-                SolutionStatus.OPTIMAL);
+                ConstraintType.SolutionStatus.OPTIMAL);
     }
 
-    private SimplexIter solvePhase1() {
+    private SimplexIterationResult solvePhase1() {
         SimplexTableauSolver simplexTableauSolver = new SimplexTableauSolver(tableau, basisIndices);
-        SimplexIter phase1Result;
-        int iteration = 0;
+        SimplexIterationResult phase1Result;
+        int iteration = 1;
         do {
             phase1Result = simplexTableauSolver.solve();
             simplexStepListener.onPhase1Step(
-                    phase1Result.getTableau(),
-                    phase1Result.getEnteringVar() != null ? variableNames.get(phase1Result.getEnteringVar()) : null,
-                    phase1Result.getLeavingVar() != null ? variableNames.get(phase1Result.getLeavingVar()) : null,
+                    phase1Result.tableau(),
+                    phase1Result.enteringVar() != null ? variableNames.get(phase1Result.enteringVar()) : null,
+                    phase1Result.leavingVar() != null ? variableNames.get(phase1Result.leavingVar()) : null,
                     iteration,
-                    phase1Result.getBaseVariablesIndices()
+                    phase1Result.baseVariablesIndices()
                             .stream()
                             .map(variableNames::get)
                             .toList(),
                     variableNames);
             iteration++;
-        } while (phase1Result.getStatus() == SimplexIter.Status.CONTINUE);
+        } while (phase1Result.status() == SimplexIterationResult.Status.CONTINUE);
 
-        if (phase1Result.getStatus() != SimplexIter.Status.OPTIMAL) {
-            simplexStepListener.onPhase1Complete(phase1Result.getTableau(), false);
+        if (phase1Result.status() != SimplexIterationResult.Status.OPTIMAL) {
+            simplexStepListener.onPhase1Complete(phase1Result.tableau(), false);
             return phase1Result;
         }
 
 
-        Fraction objectiveValue = phase1Result.getTableau()
+        Fraction objectiveValue = phase1Result.tableau()
                 .getEntry(
-                        phase1Result.getTableau().getRowDimension() - 2,
-                        phase1Result.getTableau().getColumnDimension() - 1);
+                        phase1Result.tableau().getRowDimension() - 2,
+                        phase1Result.tableau().getColumnDimension() - 1);
 
         simplexStepListener.onPhase1Complete(
-                phase1Result.getTableau(),
+                phase1Result.tableau(),
                 FractionUtils.isZero(objectiveValue));
         return phase1Result;
     }
@@ -164,23 +164,24 @@ public class LinearProgramSolver {
 
         for (Constraint constraint : constraints) {
             k++;
-            if (constraint.getType() == ConstraintType.EQUAL) {
-                equations.add(new Equation(constraint.getCoefficients(), constraint.getValue()));
+            if (constraint.type() == ConstraintType.EQUAL) {
+                equations.add(new Equation(constraint.coefficients(), constraint.value()));
                 artificialVariablesCoefficients.put(k, 1.0);
                 continue;
             }
 
-            double multiplier = (constraint.getType() == ConstraintType.GREATER_THAN_OR_EQUAL) ? -1.0 : 1.0;
-            if (multiplier * constraint.getValue() < 0) {
+            double multiplier = (constraint.type() == ConstraintType.GREATER_THAN_OR_EQUAL) ? -1.0 :
+                    1.0;
+            if (multiplier * constraint.value() < 0) {
                 artificialVariablesCoefficients.put(k, 1.0);
                 slackVariablesCoefficients.put(k, -1.0);
                 equations.add(new Equation(
-                        scaleCoefficients(constraint.getCoefficients(), -1 * multiplier),
-                        -1 * multiplier * constraint.getValue()));
+                        scaleCoefficients(constraint.coefficients(), -1 * multiplier),
+                        -1 * multiplier * constraint.value()));
             } else {
                 equations.add(new Equation(
-                        scaleCoefficients(constraint.getCoefficients(), multiplier),
-                        multiplier * constraint.getValue()));
+                        scaleCoefficients(constraint.coefficients(), multiplier),
+                        multiplier * constraint.value()));
                 slackVariablesCoefficients.put(k, 1.0);
             }
         }
@@ -281,7 +282,8 @@ public class LinearProgramSolver {
      */
     private LinearProgramSolverOutput extractSolution(Tableau tableau, List<Integer> basisIndices) {
         Fraction objectiveFunctionValue = tableau.getEntry(
-                tableau.getRowDimension() - 1, tableau.getColumnDimension() - 1).multiply(-1);
+                tableau.getRowDimension() - 1,
+                tableau.getColumnDimension() - 1);
         System.out.println("Optimal objective function value: " + objectiveFunctionValue);
 
         List<Fraction> finalValues = new ArrayList<>();
