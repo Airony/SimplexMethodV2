@@ -21,11 +21,17 @@ public class LinearProgramSolver {
     private final List<Integer> basisIndices;
     private final List<String> variableNames = new ArrayList<>();
     private final SimplexStepListener simplexStepListener;
+    private boolean isMax;
 
     public LinearProgramSolver(LPProblem lpProblem, SimplexStepListener simplexStepListener) {
         this.maxObjectiveFunctionCoefficients = Arrays.stream(lpProblem.getObjectiveCoefficients())
                 .boxed()
                 .toList();
+        isMax = true;
+        if (lpProblem.getObjectiveType() == LPProblem.ObjectiveType.MINIMIZE) {
+            isMax = false;
+            scaleCoefficients(this.maxObjectiveFunctionCoefficients, -1.0);
+        }
         this.simplexStepListener = simplexStepListener;
 
 
@@ -284,6 +290,9 @@ public class LinearProgramSolver {
         Fraction objectiveFunctionValue = tableau.getEntry(
                 tableau.getRowDimension() - 1,
                 tableau.getColumnDimension() - 1);
+        if (!isMax) {
+            objectiveFunctionValue = objectiveFunctionValue.multiply((-1));
+        }
         System.out.println("Optimal objective function value: " + objectiveFunctionValue);
 
         List<Fraction> finalValues = new ArrayList<>();
