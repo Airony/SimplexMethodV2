@@ -1,6 +1,7 @@
 package view;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -11,6 +12,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -21,20 +23,30 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import logic.LPProblem;
+import logic.LinearProgramSolver;
+import logic.SimplexStepListener;
+import logic.SolutionStatus;
+import models.Constraint;
+import models.ConstraintType;
+import org.apache.commons.math3.fraction.Fraction;
+import org.apache.commons.math3.linear.FieldMatrix;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class SimplexSolverUI extends Application {
+public class SimplexSolverUI extends Application implements SimplexStepListener {
 
     private final List<ConstraintRow> constraintRows = new ArrayList<>();
     private final List<TextField> objectiveCoefficients = new ArrayList<>();
+    // For tracking tableau metadata
+    private final String[] currentColumnHeaders = {"x1", "x2", "x3"};
+    private final String[] currentBasisVariables = {"x3", "x4", "x5", "x6"};
     private int numVariables = 3;
     private ComboBox<String> objectiveType;
     private VBox constraintsContainer;
     private HBox objectiveContainer;
     private VBox solutionDisplay;
-    private ScrollPane solutionScrollPane;
 
     public static void main(String[] args) {
         launch(args);
@@ -67,7 +79,7 @@ public class SimplexSolverUI extends Application {
         solutionTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         solutionDisplay.getChildren().add(solutionTitle);
 
-        solutionScrollPane = new ScrollPane(solutionDisplay);
+        ScrollPane solutionScrollPane = new ScrollPane(solutionDisplay);
         solutionScrollPane.setFitToWidth(true);
         solutionScrollPane.setPrefWidth(400);
 
@@ -263,92 +275,215 @@ public class SimplexSolverUI extends Application {
     private void solveProblem() {
         clearSolution();
 
-        // Display mock solution (replace with actual solver integration)
-        displayMockSolution();
+        try {
+            // Parse input data
+            LPProblem problem = parseInputData();
+
+            // Display problem summary
+            displayProblemSummary(problem);
+
+            LinearProgramSolver solver = new LinearProgramSolver(problem, this);
+            solver.solve();
+
+        } catch (Exception e) {
+            onError("Error parsing input: " + e.getMessage());
+        }
     }
 
-    private void displayMockSolution() {
-        // Phase 1 Header
-        Label phase1Title = new Label("Phase 1 - Finding Initial Feasible Solution");
-        phase1Title.setFont(Font.font("System", FontWeight.BOLD, 14));
-        phase1Title.setStyle("-fx-text-fill: #0066cc;");
-        solutionDisplay.getChildren().add(phase1Title);
-
-        // Mock Phase 1 iterations
-        for (int i = 1; i <= 2; i++) {
-            VBox iterBox = createIterationDisplay("Phase 1", i, "x" + i, "s" + i);
-            solutionDisplay.getChildren().add(iterBox);
+    private LPProblem parseInputData() throws NumberFormatException {
+        // Parse objective coefficients
+        double[] objCoeffs = new double[numVariables];
+        for (int i = 0; i < numVariables; i++) {
+            String text = objectiveCoefficients.get(i).getText().trim();
+            objCoeffs[i] = text.isEmpty() ? 0.0 : Double.parseDouble(text);
         }
 
-        // Phase 2 Header
-        Label phase2Title = new Label("Phase 2 - Optimizing Objective Function");
-        phase2Title.setFont(Font.font("System", FontWeight.BOLD, 14));
-        phase2Title.setStyle("-fx-text-fill: #009900;");
-        solutionDisplay.getChildren().add(phase2Title);
+        // Parse constraints
+        List<Constraint> constraints = new ArrayList<>();
 
-        // Mock Phase 2 iterations
-        for (int i = 1; i <= 3; i++) {
-            VBox iterBox = createIterationDisplay("Phase 2", i, "x" + (i + 1), "s" + i);
-            solutionDisplay.getChildren().add(iterBox);
+        for (ConstraintRow row : constraintRows) {
+            // Parse coefficients
+            List<Double> coefficients = new ArrayList<>();
+            for (int j = 0; j < numVariables; j++) {
+                String text = row.coefficients.get(j).getText().trim();
+                double coeff = text.isEmpty() ? 0.0 : Double.parseDouble(text);
+                coefficients.add(coeff);
+            }
+
+            // Parse RHS value
+            String rhsText = row.rhsValue.getText().trim();
+            double rhsValue = rhsText.isEmpty() ? 0.0 : Double.parseDouble(rhsText);
+
+            // Parse constraint type
+            ConstraintType constraintType = ConstraintType.fromString(row.constraintType.getValue());
+
+            // Create and add constraint
+            Constraint constraint = new Constraint(coefficients, rhsValue, constraintType);
+            constraints.add(constraint);
         }
+        LPProblem.ObjectiveType objType = LPProblem.ObjectiveType.fromString(objectiveType.getValue());
 
-        // Final Results
-        VBox resultsBox = new VBox(5);
-        resultsBox.setPadding(new Insets(10));
-        resultsBox.setStyle(
-                "-fx-background-color: #e7f3ff; -fx-border-color: #0066cc; -fx-border-width: 2;");
+        return new LPProblem(objCoeffs, constraints, objType);
+    }
 
-        Label resultsTitle = new Label("Final Results");
-        resultsTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
+    private void displayProblemSummary(LPProblem problem) {
+        VBox summary = new VBox(5);
+        summary.setPadding(new Insets(10));
+        summary.setStyle(
+                "-fx-background-color: #e7f3ff; -fx-border-color: #0066cc; -fx-border-width: 1;");
 
-        Label statusLabel = new Label("Status: OPTIMAL");
-        statusLabel.setStyle("-fx-text-fill: #009900; -fx-font-weight: bold;");
+        Label title = new Label("Problem Summary");
+        title.setFont(Font.font("System", FontWeight.BOLD, 12));
 
-        Label optimalValue = new Label("Optimal Value: 150.00");
-        Label solution = new Label("Solution: x1 = 10.00, x2 = 5.00, x3 = 0.00");
+        TextArea problemText = new TextArea(problem.toString());
+        problemText.setEditable(false);
+        problemText.setPrefRowCount(5);
+        problemText.setStyle("-fx-font-family: monospace;");
 
-        resultsBox.getChildren().addAll(resultsTitle, statusLabel, optimalValue, solution);
-        solutionDisplay.getChildren().add(resultsBox);
+        summary.getChildren().addAll(title, problemText);
+        solutionDisplay.getChildren().add(summary);
+    }
+
+    // SimplexStepListener implementation
+    @Override
+    public void onPhase1Step(FieldMatrix<Fraction> tableau,
+                             String entering,
+                             String leaving,
+                             int iteration,
+                             List<String> basisVariableNames,
+                             List<String> variableNames) {
+        Platform.runLater(() -> {
+            if (iteration == 1) {
+                Label phase1Title = new Label("Phase 1 - Finding Initial Feasible Solution");
+                phase1Title.setFont(Font.font("System", FontWeight.BOLD, 14));
+                phase1Title.setStyle("-fx-text-fill: #0066cc; -fx-padding: 10 0 5 0;");
+                solutionDisplay.getChildren().add(phase1Title);
+            }
+
+            VBox iterBox = createIterationDisplay(
+                    "Phase 1",
+                    iteration,
+                    entering,
+                    leaving,
+                    tableau,
+                    basisVariableNames.toArray(new String[0]),
+                    variableNames.toArray(new String[0]));
+            solutionDisplay.getChildren().add(iterBox);
+        });
+    }
+
+    @Override
+    public void onPhase1Complete(FieldMatrix<Fraction> tableau, boolean feasible) {
+        Platform.runLater(() -> {
+            Label completeLabel = new Label(feasible ? "✓ Phase 1 Complete - Feasible solution found" : "✗ Phase 1 Complete - Problem is INFEASIBLE");
+            completeLabel.setStyle(feasible ? "-fx-text-fill: #28a745; -fx-font-weight: bold; -fx-padding: 5;" : "-fx-text-fill: #dc3545; -fx-font-weight: bold; -fx-padding: 5;");
+            solutionDisplay.getChildren().add(completeLabel);
+        });
+    }
+
+    @Override
+    public void onPhase2Step(FieldMatrix<Fraction> tableau,
+                             String entering,
+                             String leaving,
+                             int iteration,
+                             List<String> basisVariableNames,
+                             List<String> variableNames) {
+        Platform.runLater(() -> {
+            if (iteration == 1) {
+                Label phase2Title = new Label("Phase 2 - Optimizing Objective Function");
+                phase2Title.setFont(Font.font("System", FontWeight.BOLD, 14));
+                phase2Title.setStyle("-fx-text-fill: #28a745; -fx-padding: 10 0 5 0;");
+                solutionDisplay.getChildren().add(phase2Title);
+            }
+
+            VBox iterBox = createIterationDisplay(
+                    "Phase 2",
+                    iteration,
+                    entering,
+                    leaving,
+                    tableau,
+                    basisVariableNames.toArray(new String[0]),
+                    variableNames.toArray(new String[0]));
+            solutionDisplay.getChildren().add(iterBox);
+        });
+    }
+
+    @Override
+    public void onPhase2Complete(FieldMatrix<Fraction> tableau,
+                                 Fraction optimalValue,
+                                 Fraction[] solution,
+                                 SolutionStatus status) {
+        Platform.runLater(() -> {
+            VBox resultsBox = new VBox(8);
+            resultsBox.setPadding(new Insets(12));
+            resultsBox.setStyle(
+                    "-fx-background-color: #d4edda; -fx-border-color: #28a745; -fx-border-width: 2;");
+
+            Label resultsTitle = new Label("Final Results");
+            resultsTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+
+            Label statusLabel = new Label("Status: " + status);
+            statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
+            statusLabel.setTextFill(javafx.scene.paint.Color.web(status == SolutionStatus.OPTIMAL ? "#28a745" : "#dc3545"));
+
+            Label optimalLabel = new Label(String.format(
+                    "Optimal Value: %s = %.4f",
+                    optimalValue.toString(),
+                    optimalValue.doubleValue()));
+            optimalLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+
+            StringBuilder solText = new StringBuilder("Solution: ");
+            for (int i = 0; i < solution.length; i++) {
+                if (i > 0) solText.append(", ");
+                solText.append(String.format(
+                        "x%d = %s = %.4f",
+                        i + 1,
+                        solution[i].toString(),
+                        solution[i].doubleValue()));
+            }
+            Label solutionLabel = new Label(solText.toString());
+
+            resultsBox.getChildren().addAll(resultsTitle, statusLabel, optimalLabel, solutionLabel);
+            solutionDisplay.getChildren().add(resultsBox);
+        });
+    }
+
+    @Override
+    public void onError(String message) {
+        Platform.runLater(() -> {
+            Label errorLabel = new Label("ERROR: " + message);
+            errorLabel.setStyle("-fx-text-fill: #dc3545; -fx-font-weight: bold; " + "-fx-padding: 10; -fx-background-color: #f8d7da; " + "-fx-border-color: #dc3545; -fx-border-width: 2;");
+            solutionDisplay.getChildren().add(errorLabel);
+        });
     }
 
     private VBox createIterationDisplay(String phase,
                                         int iteration,
                                         String entering,
-                                        String leaving) {
-        VBox box = new VBox(5);
-        box.setPadding(new Insets(8));
+                                        String leaving,
+                                        FieldMatrix<Fraction> tableau,
+                                        String[] currentBasisVariables,
+                                        String[] currentVariableNames) {
+        VBox box = new VBox(8);
+        box.setPadding(new Insets(10));
         box.setStyle("-fx-background-color: white; -fx-border-color: #dee2e6; -fx-border-width: 1;");
 
         Label iterLabel = new Label(phase + " - Iteration " + iteration);
-        iterLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
+        iterLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
 
         Label enteringLabel = new Label("Entering: " + entering);
+        enteringLabel.setStyle("-fx-text-fill: #0066cc;");
+
         Label leavingLabel = new Label("Leaving: " + leaving);
+        leavingLabel.setStyle("-fx-text-fill: #cc0000;");
 
-        // Mock tableau display
-        GridPane tableau = new GridPane();
-        tableau.setHgap(8);
-        tableau.setVgap(4);
-        tableau.setPadding(new Insets(5));
-        tableau.setStyle("-fx-background-color: #f8f9fa;");
+        // Render tableau using TableauRenderer
+        GridPane tableauGrid = TableauRenderer.createTableauGrid(
+                tableau,
+                currentBasisVariables,
+                currentVariableNames);
 
-        String[][] mockData = {
-                {"Basis", "x1", "x2", "x3", "RHS"},
-                {"s1", "1/2", "3/4", "0", "10"},
-                {"s2", "1/3", "0", "1/2", "5"},
-                {"z", "-2", "-3", "0", "0"}
-        };
-
-        for (int i = 0; i < mockData.length; i++) {
-            for (int j = 0; j < mockData[i].length; j++) {
-                Label cell = new Label(mockData[i][j]);
-                cell.setStyle("-fx-padding: 2 8;");
-                if (i == 0) cell.setStyle("-fx-font-weight: bold; -fx-padding: 2 8;");
-                tableau.add(cell, j, i);
-            }
-        }
-
-        box.getChildren().addAll(iterLabel, enteringLabel, leavingLabel, tableau);
+        box.getChildren().addAll(iterLabel, enteringLabel, leavingLabel, tableauGrid);
         return box;
     }
 
@@ -358,6 +493,7 @@ public class SimplexSolverUI extends Application {
         solutionTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         solutionDisplay.getChildren().add(solutionTitle);
     }
+
 
     private static class ConstraintRow {
         List<TextField> coefficients = new ArrayList<>();

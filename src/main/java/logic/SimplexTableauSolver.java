@@ -1,6 +1,5 @@
 package logic;
 
-import models.SimplexTableauSolverDTO;
 import org.apache.commons.math3.fraction.Fraction;
 
 import java.util.ArrayList;
@@ -18,29 +17,51 @@ public class SimplexTableauSolver {
     }
 
 
-    public SimplexTableauSolverDTO solve() {
+    public SimplexIter solve() {
+        if (isSolved()) {
+            return new SimplexIter(
+                    null,
+                    null,
+                    mat,
+                    SimplexIter.Status.OPTIMAL,
+                    baseVariablesIndices);
 
-        while (!isSolved()) {
-            this.mat.print();
-            System.out.println("Basic variable indices " + baseVariablesIndices);
-            int pivotCol = getPivotColumn();
-            System.out.println("Pivot column is " + pivotCol);
-            int replaceRowIndex = getLeavingVariable(pivotCol);
-            System.out.println("Leaving variable " + replaceRowIndex);
-
-            this.baseVariablesIndices.remove(replaceRowIndex); // Cast to Integer to remove by value
-            this.baseVariablesIndices.add(pivotCol);
-            normalizePivot(pivotCol, replaceRowIndex);
         }
+
+        this.mat.print();
+        System.out.println("Basic variable indices " + baseVariablesIndices);
+        int pivotCol = getPivotColumn();
+        System.out.println("Pivot column is " + pivotCol);
+        int replaceRowIndex;
+        try {
+            replaceRowIndex = getLeavingVariable(pivotCol);
+        } catch (UnboundedProblemException e) {
+            return new SimplexIter(
+                    pivotCol,
+                    null,
+                    mat,
+                    SimplexIter.Status.UNBOUNDED,
+                    baseVariablesIndices);
+        }
+        System.out.println("Leaving variable " + replaceRowIndex);
+
+        this.baseVariablesIndices.remove(replaceRowIndex); // Cast to Integer to remove by value
+        this.baseVariablesIndices.add(pivotCol);
+        normalizePivot(pivotCol, replaceRowIndex);
 
         this.mat.print();
         System.out.println("Basic variable indices " + baseVariablesIndices);
 
         // Now what we need to do is extract the solution
         // We have the list of basic variables
-        System.out.println("Basic variacles are " + baseVariablesIndices.toString());
+        System.out.println("Basic variacles are " + baseVariablesIndices);
 
-        return new SimplexTableauSolverDTO(mat, baseVariablesIndices);
+        return new SimplexIter(
+                pivotCol,
+                replaceRowIndex,
+                mat,
+                SimplexIter.Status.CONTINUE,
+                baseVariablesIndices);
 
     }
 
@@ -72,7 +93,7 @@ public class SimplexTableauSolver {
         return maxIndex;
     }
 
-    private int getLeavingVariable(int pivotColumn) {
+    private int getLeavingVariable(int pivotColumn) throws UnboundedProblemException {
         Fraction minQuotient = new Fraction(-1);
         int minIndex = -1;
 
@@ -90,7 +111,7 @@ public class SimplexTableauSolver {
         }
 
         if (minIndex < 0) {
-            throw new RuntimeException("Unbounded Problem");
+            throw new UnboundedProblemException();
         }
         return minIndex;
     }
@@ -120,6 +141,12 @@ public class SimplexTableauSolver {
             Fraction factor = mat.getEntry(i, pivotColumnIndex);
             if (factor.getDenominator() == 0) continue;
             mat.subtractMultipleOfRow(i, pivotRowIndex, factor);
+        }
+    }
+
+    private class UnboundedProblemException extends Exception {
+        public UnboundedProblemException() {
+            super("The linear program is unbounded.");
         }
     }
 

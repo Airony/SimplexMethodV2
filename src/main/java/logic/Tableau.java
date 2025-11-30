@@ -47,15 +47,6 @@ public class Tableau extends Array2DRowFieldMatrix<Fraction> {
         }
     }
 
-    //    public void print() {
-//        for (int i = 0; i < this.getRowDimension(); i++) {
-//            for (int j = 0; j < this.getColumnDimension(); j++) {
-//                System.out.print(this.getEntry(i, j) + "\t");
-//            }
-//            System.out.println();
-//        }
-//        System.out.println();
-//    }
     public void print() {
         int rows = this.getRowDimension();
         int cols = this.getColumnDimension();
