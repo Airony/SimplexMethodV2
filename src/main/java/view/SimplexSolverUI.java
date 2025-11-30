@@ -25,6 +25,7 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import logic.LinearProgramSolver;
 import logic.SimplexStepListener;
+import logic.Tableau;
 import models.Constraint;
 import models.ConstraintType;
 import models.LPProblem;
@@ -32,6 +33,7 @@ import org.apache.commons.math3.fraction.Fraction;
 import org.apache.commons.math3.linear.FieldMatrix;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class SimplexSolverUI extends Application implements SimplexStepListener {
@@ -88,6 +90,11 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
         root.setCenter(splitPane);
 
         Scene scene = new Scene(root, 1200, 700);
+
+        primaryStage.setOnCloseRequest(_ -> {
+            Platform.exit();
+            System.exit(0);
+        });
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -345,7 +352,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
 
     // SimplexStepListener implementation
     @Override
-    public void onPhase1Step(FieldMatrix<Fraction> tableau,
+    public void onPhase1Step(Tableau tableau,
                              String entering,
                              String leaving,
                              int iteration,
@@ -364,7 +371,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
                     iteration,
                     entering,
                     leaving,
-                    tableau,
+                    new Tableau(tableau),
                     basisVariableNames.toArray(new String[0]),
                     variableNames.toArray(new String[0]));
             solutionDisplay.getChildren().add(iterBox);
@@ -372,7 +379,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
     }
 
     @Override
-    public void onPhase1Complete(FieldMatrix<Fraction> tableau, boolean feasible) {
+    public void onPhase1Complete(boolean feasible) {
         Platform.runLater(() -> {
             Label completeLabel = new Label(feasible ? "✓ Phase 1 Complete - Feasible solution found" : "✗ Phase 1 Complete - Problem is INFEASIBLE");
             completeLabel.setStyle(feasible ? "-fx-text-fill: #28a745; -fx-font-weight: bold; -fx-padding: 5;" : "-fx-text-fill: #dc3545; -fx-font-weight: bold; -fx-padding: 5;");
@@ -381,7 +388,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
     }
 
     @Override
-    public void onPhase2Step(FieldMatrix<Fraction> tableau,
+    public void onPhase2Step(Tableau tableau,
                              String entering,
                              String leaving,
                              int iteration,
@@ -400,7 +407,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
                     iteration,
                     entering,
                     leaving,
-                    tableau,
+                    new Tableau(tableau),
                     basisVariableNames.toArray(new String[0]),
                     variableNames.toArray(new String[0]));
             solutionDisplay.getChildren().add(iterBox);
@@ -408,8 +415,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
     }
 
     @Override
-    public void onPhase2Complete(FieldMatrix<Fraction> tableau,
-                                 Fraction optimalValue,
+    public void onPhase2Complete(Fraction optimalValue,
                                  Fraction[] solution, ConstraintType.SolutionStatus status) {
         Platform.runLater(() -> {
             VBox resultsBox = new VBox(8);
@@ -476,10 +482,13 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
         leavingLabel.setStyle("-fx-text-fill: #cc0000;");
 
         // Render tableau using TableauRenderer
+        int highLightRow = Arrays.asList(currentBasisVariables).indexOf(leaving);
+        int highLightCol = Arrays.asList(currentVariableNames).indexOf(entering);
         GridPane tableauGrid = TableauRenderer.createTableauGrid(
                 tableau,
-                currentBasisVariables,
-                currentVariableNames);
+                currentBasisVariables, currentVariableNames, highLightRow, highLightCol
+
+        );
 
         box.getChildren().addAll(iterLabel, enteringLabel, leavingLabel, tableauGrid);
         return box;

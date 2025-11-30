@@ -96,11 +96,13 @@ public class LinearProgramSolver {
         var phase2Solver = new SimplexTableauSolver(phase2Tableau, phase2BasisIndices);
         System.out.println("Starting Phase 2 Simplex Solver:");
         SimplexIterationResult phase2Result;
+        Tableau previousTableau = new Tableau(phase2Tableau);
+
         int iteration = 1;
         do {
             phase2Result = phase2Solver.solve();
             simplexStepListener.onPhase2Step(
-                    phase2Result.tableau(),
+                    previousTableau,
                     phase2Result.enteringVar() != null ? variableNames.get(phase2Result.enteringVar()) : null,
                     phase2Result.leavingVar() != null ? variableNames.get(phase2Result.leavingVar()) : null,
                     iteration,
@@ -109,10 +111,11 @@ public class LinearProgramSolver {
                             .map(variableNames::get)
                             .toList(),
                     phase2VariableNames);
+            previousTableau = new Tableau(phase2Result.tableau());
             iteration++;
         } while (phase2Result.status() == SimplexIterationResult.Status.CONTINUE);
         if (phase2Result.status() == SimplexIterationResult.Status.UNBOUNDED) {
-            simplexStepListener.onPhase2Complete(phase2Result.tableau(),
+            simplexStepListener.onPhase2Complete(
                     null, null, ConstraintType.SolutionStatus.UNBOUNDED);
         }
 
@@ -121,20 +124,20 @@ public class LinearProgramSolver {
                 phase2Result.baseVariablesIndices());
 
         simplexStepListener.onPhase2Complete(
-                phase2Result.tableau(),
                 extractedSolution.optimalValue(),
                 extractedSolution.variableValues().toArray(new Fraction[0]),
                 ConstraintType.SolutionStatus.OPTIMAL);
     }
 
     private SimplexIterationResult solvePhase1() {
+        Tableau previousTableau = new Tableau(tableau);
         SimplexTableauSolver simplexTableauSolver = new SimplexTableauSolver(tableau, basisIndices);
         SimplexIterationResult phase1Result;
         int iteration = 1;
         do {
             phase1Result = simplexTableauSolver.solve();
             simplexStepListener.onPhase1Step(
-                    phase1Result.tableau(),
+                    previousTableau,
                     phase1Result.enteringVar() != null ? variableNames.get(phase1Result.enteringVar()) : null,
                     phase1Result.leavingVar() != null ? variableNames.get(phase1Result.leavingVar()) : null,
                     iteration,
@@ -144,10 +147,12 @@ public class LinearProgramSolver {
                             .toList(),
                     variableNames);
             iteration++;
+
+            previousTableau = new Tableau(phase1Result.tableau());
         } while (phase1Result.status() == SimplexIterationResult.Status.CONTINUE);
 
         if (phase1Result.status() != SimplexIterationResult.Status.OPTIMAL) {
-            simplexStepListener.onPhase1Complete(phase1Result.tableau(), false);
+            simplexStepListener.onPhase1Complete(false);
             return phase1Result;
         }
 
@@ -158,7 +163,6 @@ public class LinearProgramSolver {
                         phase1Result.tableau().getColumnDimension() - 1);
 
         simplexStepListener.onPhase1Complete(
-                phase1Result.tableau(),
                 FractionUtils.isZero(objectiveValue));
         return phase1Result;
     }

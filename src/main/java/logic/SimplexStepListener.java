@@ -2,7 +2,6 @@ package logic;
 
 import models.ConstraintType;
 import org.apache.commons.math3.fraction.Fraction;
-import org.apache.commons.math3.linear.FieldMatrix;
 
 import java.util.List;
 
@@ -20,7 +19,7 @@ public interface SimplexStepListener {
      * @param leaving The leaving variable name (e.g., "s1", "a1")
      * @param iteration The iteration number (1-indexed)
      */
-    void onPhase1Step(FieldMatrix<Fraction> tableau,
+    void onPhase1Step(Tableau tableau,
                       String entering,
                       String leaving,
                       int iteration,
@@ -30,10 +29,9 @@ public interface SimplexStepListener {
     /**
      * Called when Phase 1 is complete.
      *
-     * @param tableau  The final Phase 1 tableau
      * @param feasible True if a feasible solution was found, false otherwise
      */
-    void onPhase1Complete(FieldMatrix<Fraction> tableau, boolean feasible);
+    void onPhase1Complete(boolean feasible);
 
     /**
      * Called after each pivot operation in Phase 2 (optimizing objective function).
@@ -43,7 +41,7 @@ public interface SimplexStepListener {
      * @param leaving The leaving variable name
      * @param iteration The iteration number (1-indexed)
      */
-    void onPhase2Step(FieldMatrix<Fraction> tableau,
+    void onPhase2Step(Tableau tableau,
                       String entering,
                       String leaving,
                       int iteration,
@@ -53,12 +51,11 @@ public interface SimplexStepListener {
     /**
      * Called when Phase 2 is complete with the final solution.
      *
-     * @param tableau The final optimal tableau
      * @param optimalValue The optimal objective function value
-     * @param solution Array of variable values in order [x1, x2, ..., xn]
-     * @param status The solution status (OPTIMAL, UNBOUNDED, INFEASIBLE)
+     * @param solution     Array of variable values in order [x1, x2, ..., xn]
+     * @param status       The solution status (OPTIMAL, UNBOUNDED, INFEASIBLE)
      */
-    void onPhase2Complete(FieldMatrix<Fraction> tableau, Fraction optimalValue,
+    void onPhase2Complete(Fraction optimalValue,
                           Fraction[] solution, ConstraintType.SolutionStatus status);
 
     /**
