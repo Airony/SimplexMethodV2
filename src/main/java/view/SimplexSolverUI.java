@@ -41,8 +41,6 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
     private final List<ConstraintRow> constraintRows = new ArrayList<>();
     private final List<TextField> objectiveCoefficients = new ArrayList<>();
     // For tracking tableau metadata
-    private final String[] currentColumnHeaders = {"x1", "x2", "x3"};
-    private final String[] currentBasisVariables = {"x3", "x4", "x5", "x6"};
     private int numVariables = 3;
     private ComboBox<String> objectiveType;
     private VBox constraintsContainer;
@@ -292,6 +290,8 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
             solver.solve();
 
         } catch (Exception e) {
+            System.out.println(e);
+            e.printStackTrace();
             onError("Error parsing input: " + e.getMessage());
         }
     }
