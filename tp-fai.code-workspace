@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../tp-fai"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"discord.enabled": false
+	}
+}

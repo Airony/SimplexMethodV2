@@ -47,6 +47,7 @@ public class LinearProgramSolver {
         fillConstraintRows(equations, lpProblem.getConstraints().size(), numVariables);
         fillObjectiveFunctionRow(numRows, lpProblem.getObjectiveCoefficients());
 
+        // i dont understand this part yet
         if (!artificialVariablesCoefficients.isEmpty()) {
             buildArtificialObjectiveFunctionRow(
                     lpProblem.getConstraints().size(),
@@ -73,6 +74,8 @@ public class LinearProgramSolver {
             variableNames.add("a" + (i + 1));
         }
     }
+
+
 
     public void solve() {
 
@@ -101,6 +104,10 @@ public class LinearProgramSolver {
                 ConstraintType.SolutionStatus.OPTIMAL);
     }
 
+
+
+
+    
     private SimplexIterationResult solvePhase2(Tableau phase2Tableau,
                                                List<Integer> phase2BasisIndices
 
@@ -242,6 +249,16 @@ public class LinearProgramSolver {
     private void fillConstraintRows(List<Equation> equations,
                                     int numConstraints,
                                     int numVariables) {
+        // result of the table is gonna be like this :
+        //       | x x x y y y z z z
+        //       | x x x y y y z z z
+        //   T = | x x x y y y z z z
+        //       | x x x y y y z z z
+        //       | x x x y y y z z z
+        //       | x x x y y y z z z
+        //  dim(T) = number of constraints (lines) * (total num of variables (normal + slack + artificial) + 1 (RHS) ) (columns) 
+        //
+        
         for (int i = 0; i < numConstraints; i++) {
             // Put coefficients
             Equation equation = equations.get(i);
@@ -270,13 +287,26 @@ public class LinearProgramSolver {
 
     }
 
+
+    // fills the Zi row
     private void fillObjectiveFunctionRow(int numRows, double[] objectiveFunctionCoefficients) {
+        System.out.println("Original obj coeffs: " + Arrays.toString(objectiveFunctionCoefficients));
+        System.out.println("Is max? " + isMax);
 
         List<Double> finalCoefficients =
                 new ArrayList<>(Arrays.stream(objectiveFunctionCoefficients).boxed().toList());
+/*         for (int i = 0; i < finalCoefficients.size(); i++) {
+            // System.out.println("um :  " + finalCoefficients.get(i) );
+            finalCoefficients.set(i,-finalCoefficients.get(i) ) ;
+        } */
+
+        System.out.println("Tableau obj row coeffs: " + finalCoefficients);
+
+        // if it is min problem then we multiply the members of objective function by -1
         if (!isMax) {
             finalCoefficients = scaleCoefficients(finalCoefficients);
         }
+
         finalCoefficients.addAll(new ArrayList<>(numSlackVariables + numArtificialVariables));
 
         for (int i = 0; i < finalCoefficients.size(); i++) {
@@ -333,24 +363,39 @@ public class LinearProgramSolver {
         Fraction objectiveFunctionValue = tableau.getEntry(
                 tableau.getRowDimension() - 1,
                 tableau.getColumnDimension() - 1);
-        if (!isMax) {
+
+                System.out.println("DEBUG : CALL to private LinearProgramSolverOutput extractSolution");
+                System.out.println("DEBUG : bisisIndices : " + basisIndices );
+                for (int i = 0; i < basisIndices.size(); i++) {
+                    
+                    System.out.println("DEBUG : bisisIndices["+i+"] : " + basisIndices.get(i) );
+                }
+                System.out.println("DEBUG : tableau : " + tableau );
+                
+                // we should multiply by -1 in all cases ???????
+                // or just in min ???????
+        if (isMax) {
             objectiveFunctionValue = objectiveFunctionValue.multiply((-1));
         }
         System.out.println("Optimal objective function value: " + objectiveFunctionValue);
 
+        System.out.println("DEBUG : before initilizing finalValues and entering loop ");
         List<Fraction> finalValues = new ArrayList<>();
         for (int i = 0; i < numNormalVariables; i++) {
+            System.out.print("iteration " + i + "\t");
             if (!basisIndices.contains(i)) {
                 finalValues.add(Fraction.ZERO);
             } else {
                 int rowIndex = basisIndices.indexOf(i);
                 finalValues.add(tableau.getEntry(rowIndex, tableau.getColumnDimension() - 1));
             }
+            System.out.println("added : " + finalValues.get(i));
         }
+        System.out.println("DEBUG : leaving ()");
         return new LinearProgramSolverOutput(finalValues, objectiveFunctionValue);
     }
 
-
+    // multiplies every member of List<Double> array by (-1)
     private List<Double> scaleCoefficients(List<Double> coefficients) {
         return new ArrayList<>(coefficients.stream().map(coef -> coef * -1.0).toList());
     }
@@ -378,8 +423,40 @@ public class LinearProgramSolver {
         return indices;
     }
 
-    //TODO: Do we really need this class?
+    //TODO: Do we really need this class? 
+    // who knows ????
     private record Equation(List<Double> coefficients, double value) {
     }
+
+    // solve and get results
+    public LinearProgramSolverOutput solveGetResults() {
+
+        Tableau phase2Tableau = tableau;
+        List<Integer> phase2BasisIndices = basisIndices;
+
+        if (!artificialVariablesCoefficients.isEmpty()) {
+            System.out.println("Starting Phase 1 Simplex Solver:");
+            var phase1Result = solvePhase1();
+            System.out.println("DEBUG:print phase 1 result = " + phase1Result );
+            if (phase1Result == null) {
+                return null;
+            }
+            phase2Tableau = preparePhase2Tableau(phase1Result.tableau());
+            phase2BasisIndices = phase1Result.baseVariablesIndices();
+        }
+
+        SimplexIterationResult phase2Result = solvePhase2(phase2Tableau, phase2BasisIndices);
+
+        var extractedSolution = extractSolution(
+                phase2Result.tableau(),
+                phase2Result.baseVariablesIndices());
+
+            return extractedSolution ; 
+/*         simplexStepListener.onPhase2Complete(
+                extractedSolution.optimalValue(),
+                extractedSolution.variableValues().toArray(new Fraction[0]),
+                ConstraintType.SolutionStatus.OPTIMAL); */
+    }
+
 
 }

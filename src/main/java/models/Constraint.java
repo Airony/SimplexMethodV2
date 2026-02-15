@@ -27,4 +27,19 @@ public final class Constraint {
             this.value = -this.value;
         }
     }
+
+    public String toString() {
+        String result = "" ; 
+        int i = 0 ; 
+        for ( i = 0; i < coefficients.size() - 1 ; i++) {
+            result = result + coefficients.get(i) + " * x" +(i+1)  + " + "  ;
+            
+        }
+        result = result + coefficients.get(i) + " * x" +(i+1) + " "   + type.name() + " " + value ; 
+        // result = result + coefficients.get(i) + " * x" +(i+1) + " "   + type.toString() + " " + value ; 
+        return  result ; 
+    }
+    public Constraint makeCopy() {
+        return new Constraint(value, type, coefficients) ; 
+    }
 }

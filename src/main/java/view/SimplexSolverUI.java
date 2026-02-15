@@ -89,7 +89,7 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
 
         Scene scene = new Scene(root, 1200, 700);
 
-        primaryStage.setOnCloseRequest(_ -> {
+        primaryStage.setOnCloseRequest(e -> {
             Platform.exit();
             System.exit(0);
         });
