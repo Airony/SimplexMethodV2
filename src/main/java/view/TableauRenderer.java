@@ -51,6 +51,11 @@ public class TableauRenderer {
             }
             grid.add(header, j + 1, 0);
         }
+        if (columnHeaders.length == cols - 1) {
+            Label rhsHeader = new Label("RHS");
+            rhsHeader.setStyle("-fx-font-weight: bold; -fx-padding: 4 8; -fx-alignment: center;");
+            grid.add(rhsHeader, cols, 0);
+        }
 
         // Tableau rows
         for (int i = 0; i < rows; i++) {

@@ -418,36 +418,42 @@ public class SimplexSolverUI extends Application implements SimplexStepListener 
     public void onPhase2Complete(Fraction optimalValue,
                                  Fraction[] solution, ConstraintType.SolutionStatus status) {
         Platform.runLater(() -> {
+            boolean isOptimal = status == ConstraintType.SolutionStatus.OPTIMAL && optimalValue != null && solution != null;
             VBox resultsBox = new VBox(8);
             resultsBox.setPadding(new Insets(12));
-            resultsBox.setStyle(
-                    "-fx-background-color: #d4edda; -fx-border-color: #28a745; -fx-border-width: 2;");
+            resultsBox.setStyle(isOptimal ?
+                    "-fx-background-color: #d4edda; -fx-border-color: #28a745; -fx-border-width: 2;" :
+                    "-fx-background-color: #f8d7da; -fx-border-color: #dc3545; -fx-border-width: 2;");
 
             Label resultsTitle = new Label("Final Results");
             resultsTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
 
             Label statusLabel = new Label("Status: " + status);
             statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
-            statusLabel.setTextFill(javafx.scene.paint.Color.web(status == ConstraintType.SolutionStatus.OPTIMAL ? "#28a745" : "#dc3545"));
+            statusLabel.setTextFill(javafx.scene.paint.Color.web(isOptimal ? "#28a745" : "#dc3545"));
 
-            Label optimalLabel = new Label(String.format(
-                    "Optimal Value: %s = %.4f",
-                    optimalValue.toString(),
-                    optimalValue.doubleValue()));
-            optimalLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+            resultsBox.getChildren().addAll(resultsTitle, statusLabel);
 
-            StringBuilder solText = new StringBuilder("Solution: ");
-            for (int i = 0; i < solution.length; i++) {
-                if (i > 0) solText.append(", ");
-                solText.append(String.format(
-                        "x%d = %s = %.4f",
-                        i + 1,
-                        solution[i].toString(),
-                        solution[i].doubleValue()));
+            if (isOptimal) {
+                Label optimalLabel = new Label(String.format(
+                        "Optimal Value: %s = %.4f",
+                        optimalValue.toString(),
+                        optimalValue.doubleValue()));
+                optimalLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
+
+                StringBuilder solText = new StringBuilder("Solution: ");
+                for (int i = 0; i < solution.length; i++) {
+                    if (i > 0) solText.append(", ");
+                    solText.append(String.format(
+                            "x%d = %s = %.4f",
+                            i + 1,
+                            solution[i].toString(),
+                            solution[i].doubleValue()));
+                }
+                Label solutionLabel = new Label(solText.toString());
+                resultsBox.getChildren().addAll(optimalLabel, solutionLabel);
             }
-            Label solutionLabel = new Label(solText.toString());
 
-            resultsBox.getChildren().addAll(resultsTitle, statusLabel, optimalLabel, solutionLabel);
             solutionDisplay.getChildren().add(resultsBox);
         });
     }
