@@ -46,8 +46,7 @@ public class SimplexTableauSolver {
         }
         System.out.println("Leaving variable " + replaceRowIndex);
 
-        this.baseVariablesIndices.remove(replaceRowIndex); // Cast to Integer to remove by value
-        this.baseVariablesIndices.add(pivotCol);
+        this.baseVariablesIndices.set(replaceRowIndex, pivotCol);
         normalizePivot(pivotCol, replaceRowIndex);
 
         this.mat.print();
