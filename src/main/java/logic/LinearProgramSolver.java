@@ -336,7 +336,7 @@ public class LinearProgramSolver {
         Fraction objectiveFunctionValue = tableau.getEntry(
                 tableau.getRowDimension() - 1,
                 tableau.getColumnDimension() - 1);
-        if (!isMax) {
+        if (isMax) {
             objectiveFunctionValue = objectiveFunctionValue.multiply((-1));
         }
         System.out.println("Optimal objective function value: " + objectiveFunctionValue);
