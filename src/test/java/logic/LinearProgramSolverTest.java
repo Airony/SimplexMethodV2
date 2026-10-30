@@ -150,10 +150,10 @@ class LinearProgramSolverTest {
         assertTrue(collector.phase1Completed);
         assertTrue(collector.phase1Feasible);
         assertEquals(ConstraintType.SolutionStatus.OPTIMAL, collector.status);
-        assertEquals(new Fraction(4), collector.optimalValue);
+        assertEquals(new Fraction(11, 3), collector.optimalValue);
         assertNotNull(collector.solution);
-        assertEquals(new Fraction(4), collector.solution[0]);
-        assertEquals(new Fraction(0), collector.solution[1]);
+        assertEquals(new Fraction(10, 3), collector.solution[0]);
+        assertEquals(new Fraction(1, 3), collector.solution[1]);
     }
 
     @Test

@@ -18,6 +18,7 @@ import java.util.stream.IntStream;
 public class LinearProgramSolver {
     private final Map<Integer, Double> slackVariablesCoefficients = new HashMap<>();
     private final HashSet<Integer> artificialVariablesCoefficients = new HashSet<>();
+    private final Map<Integer, Integer> rowToBasicVariableCol = new HashMap<>();
     private final Tableau tableau;
     private final List<Integer> basisIndices;
     private final List<String> variableNames = new ArrayList<>();
@@ -58,7 +59,7 @@ public class LinearProgramSolver {
         System.out.println("Initial Simplex Tableau:");
         tableau.print();
 
-        basisIndices = initializeBasisIndices();
+        basisIndices = initializeBasisIndices(lpProblem.getConstraints().size());
     }
 
     public void buildVariableNames() {
@@ -261,6 +262,9 @@ public class LinearProgramSolver {
             int rowIndex = entry.getKey();
             double coef = entry.getValue();
             tableau.setEntry(rowIndex, slackVariablesStartIndex, new Fraction(coef));
+            if (coef > 0) {
+                rowToBasicVariableCol.put(rowIndex, slackVariablesStartIndex);
+            }
             slackVariablesStartIndex++;
         }
 
@@ -268,6 +272,7 @@ public class LinearProgramSolver {
         int artificialVariablesStartIndex = slackVariablesStartIndex;
         for (var entry : artificialVariablesCoefficients) {
             tableau.setEntry(entry, artificialVariablesStartIndex, new Fraction(1));
+            rowToBasicVariableCol.put(entry, artificialVariablesStartIndex);
             artificialVariablesStartIndex++;
         }
 
@@ -365,19 +370,11 @@ public class LinearProgramSolver {
      * duh!:P )
      *
      */
-    private List<Integer> initializeBasisIndices() {
-        int firstSlackVariableIndex = numNormalVariables;
-
-        List<Integer> indices = new ArrayList<>(slackVariablesCoefficients.entrySet()
-                .stream()
-                .filter(entry -> entry.getValue() > 0)
-                .map(entry -> entry.getKey() + firstSlackVariableIndex)
-                .toList());
-
-        if (!artificialVariablesCoefficients.isEmpty()) {
-            indices.addAll(getArtificialVariableColumnsIndices());
+    private List<Integer> initializeBasisIndices(int numConstraints) {
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < numConstraints; i++) {
+            indices.add(rowToBasicVariableCol.get(i));
         }
-        indices.sort(Integer::compareTo);
         return indices;
     }
 
