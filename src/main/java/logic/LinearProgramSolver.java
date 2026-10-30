@@ -90,6 +90,9 @@ public class LinearProgramSolver {
         }
 
         SimplexIterationResult phase2Result = solvePhase2(phase2Tableau, phase2BasisIndices);
+        if (phase2Result.status() == SimplexIterationResult.Status.UNBOUNDED) {
+            return;
+        }
 
         var extractedSolution = extractSolution(
                 phase2Result.tableau(),
